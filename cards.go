@@ -12,14 +12,14 @@ import (
 type Suit string
 
 const (
-	Hearts   Suit = "H"
-	Clubs         = "C"
+	Clubs    Suit = "C"
 	Diamonds      = "D"
+	Hearts        = "H"
 	Spades        = "S"
 )
 
-// Suits are the suits.
-var Suits = []Suit{Hearts, Clubs, Diamonds, Spades}
+// Suits are the suits in alphabetical order.
+var Suits = []Suit{Clubs, Diamonds, Hearts, Spades}
 
 // Rank is the value of the card. 9, 10, J, etc.
 type Rank int
@@ -37,7 +37,6 @@ func (r Rank) String() string {
 	default:
 		return strconv.Itoa(int(r))
 	}
-
 }
 
 // The cards used in euchre
@@ -84,7 +83,6 @@ type Deck struct {
 	idx   int
 }
 
-// NewDeck is a new deck with the given cards.
 func NewDeck(cards Cards) *Deck {
 	return &Deck{
 		cards: cards,
@@ -92,45 +90,32 @@ func NewDeck(cards Cards) *Deck {
 	}
 }
 
-// NewDeckEuchre returns a new Euchre deck.
-func NewDeckEuchre() *Deck {
-	cards := make(Cards, 0, len(Suits)*len(Ranks))
-	for _, s := range Suits {
-		for _, r := range Ranks {
-			cards = append(cards, Card{Suit: s, Rank: r})
-		}
+// Deal will return up to the given number of cards.
+func (d *Deck) Deal(n int) Cards {
+	if n < 0 {
+		return nil
 	}
-	return NewDeck(cards)
-}
 
-// NewDeckEuchreShuffled returns a new shuffled euchre deck.
-func NewDeckEuchreShuffled() *Deck {
-	d := NewDeckEuchre()
-	d.shuffle()
-	return d
-}
-
-// Deal a card. If there are no cards left return false.
-func (d *Deck) Deal() (c Card, ok bool) {
 	d.mu.Lock()
 	defer d.mu.Unlock()
 
-	if d.idx < len(d.cards) {
-		c = d.cards[d.idx]
-		ok = true
-		d.idx++
+	length := len(d.cards)
+	end := d.idx + n
+	if end > length {
+		end = length
 	}
 
-	return c, ok
+	cards := d.cards[d.idx:end]
+	d.idx = end
+	return cards
 }
 
-// DealMust deals a card and panics if there are none left.
-func (d *Deck) DealMust() Card {
-	card, ok := d.Deal()
-	if ok {
-		return card
+func (d *Deck) DealMust(n int) Cards {
+	cards := d.Deal(n)
+	if len(cards) < n {
+		panic("can't deal that many cards")
 	}
-	panic("dealt past the end of the deck")
+	return cards
 }
 
 func (d *Deck) shuffle() {
@@ -141,4 +126,22 @@ func (d *Deck) shuffle() {
 	for i, j := range order {
 		d.cards[i], d.cards[j] = d.cards[j], d.cards[i]
 	}
+}
+
+// NewEuchreDeck returns the cards in a euchre deck order by suit
+// and rank.
+func NewEuchreDeck() *Deck {
+	cards := make(Cards, 0, len(Suits)*len(Ranks))
+	for _, s := range Suits {
+		for _, r := range Ranks {
+			cards = append(cards, Card{Suit: s, Rank: r})
+		}
+	}
+	return NewDeck(cards)
+}
+
+func NewShuffledEuchreDeck() *Deck {
+	d := NewEuchreDeck()
+	d.shuffle()
+	return d
 }
